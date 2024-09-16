@@ -3,8 +3,8 @@ import { User } from '../../users/entities/user.entity'; // Assuming you have a 
 import { BaseEntity } from 'src/base.entity';
 import { Billing_Status } from '../enum/billingStatus.enum';
 
-@Entity('billing')
-export class Billing extends BaseEntity {
+@Entity('billing_history')
+export class Billing_History extends BaseEntity {
   @ManyToOne(() => User, (user) => user.billingHistories, { nullable: false })
   @JoinColumn({ name: 'interpreter_id' })
   interpreter: User;

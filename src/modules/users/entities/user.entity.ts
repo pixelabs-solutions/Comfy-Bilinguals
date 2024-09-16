@@ -1,9 +1,9 @@
-import { Entity, Column, OneToMany } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne } from 'typeorm';
 import { Roles } from '../enums/roles.enum';
 import { gender } from '../enums/gender.enum';
 import { BaseEntity } from 'src/base.entity';
 import { CallHistory } from 'src/modules/calls/entities/call.entity';
-import { Billing } from 'src/modules/billing/entities/billing.entity';
+import { Billing_History } from 'src/modules/billing/entities/billing_history.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -62,6 +62,13 @@ export class User extends BaseEntity {
   @OneToMany(() => CallHistory, (callHistory) => callHistory.interpreter)
   interpreterCallHistories: CallHistory[];
 
-  @OneToMany(() => Billing, (billing) => billing.interpreter)
-  billingHistories: Billing[];
+  @OneToMany(() => Billing_History, (billing) => billing.interpreter)
+  billingHistories: Billing_History[];
+
+  // Self-referential relationship to track who added the user
+  @ManyToOne(() => User, (user) => user.addedUsers, { nullable: true })
+  addedBy: User;
+
+  @OneToMany(() => User, (user) => user.addedBy)
+  addedUsers: User[];
 }

@@ -7,15 +7,15 @@ import { CallHistory } from '../calls/entities/call.entity';
 import { User } from '../users/entities/user.entity';
 import { endOfDay, startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { Roles } from '../users/enums/roles.enum';
-import { Billing } from '../billing/entities/billing.entity';
+import { Billing_History } from '../billing/entities/billing_history.entity';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectRepository(CallHistory)
     private callHistoryRepository: Repository<CallHistory>,
-    @InjectRepository(Billing)
-    private billingRepository: Repository<Billing>,
+    @InjectRepository(Billing_History)
+    private billingRepository: Repository<Billing_History>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
   ) {}
@@ -158,7 +158,9 @@ export class AdminService {
         ),
       },
       weeklyInteractions,
-      activeInterpreters: await this.getActiveInterpretersCount(),
+      activeInterpreters: await this.getActiveInterpretersCount(
+        Roles.INTERPRETER,
+      ),
     };
   }
   async subAdminGetKpis(
@@ -219,7 +221,9 @@ export class AdminService {
         ),
       },
       weeklyInteractions,
-      activeInterpreters: await this.getActiveInterpretersCount(),
+      activeInterpreters: await this.getActiveInterpretersCount(
+        Roles.INTERPRETER,
+      ),
     };
   }
 
@@ -309,9 +313,9 @@ export class AdminService {
     return ((currentCount - previousCount) / previousCount) * 100;
   }
 
-  async getActiveInterpretersCount(): Promise<number> {
+  async getActiveInterpretersCount(role: Roles): Promise<number> {
     const activeInterpretersCount = await this.userRepository.count({
-      where: { role: Roles.INTERPRETER, status: 'active' },
+      where: { role: role, status: 'active' },
     });
     return activeInterpretersCount;
   }

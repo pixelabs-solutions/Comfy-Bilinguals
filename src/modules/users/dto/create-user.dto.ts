@@ -34,7 +34,7 @@ export class CreateUserDto {
   @IsString()
   username: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   approved: string;
 

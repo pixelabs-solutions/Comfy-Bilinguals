@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateBillingDto } from './dto/create-billing.dto';
 import { UpdateBillingDto } from './dto/update-billing.dto';
-import { Billing } from './entities/billing.entity';
+import { Billing_History } from './entities/billing_history.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThanOrEqual, Repository } from 'typeorm';
 import { GetBillingHistoryFilterDto } from './dto/getBillingHistory.dto';
@@ -11,8 +11,8 @@ import { UsersService } from '../users/users.service';
 @Injectable()
 export class BillingService {
   constructor(
-    @InjectRepository(Billing)
-    private billingHistoryRepository: Repository<Billing>,
+    @InjectRepository(Billing_History)
+    private billingHistoryRepository: Repository<Billing_History>,
     @InjectRepository(CallHistory)
     private callHistoryRepository: Repository<CallHistory>,
     private userService: UsersService,
@@ -78,7 +78,7 @@ export class BillingService {
   }
   async fetchAllBills(userType: string, userId: number) {
     let totalAmount = 0;
-    const user = await this.userService.findbyId(userId);
+    const user = await this.userService.findById(userId);
     // If userType is interpreter, fetch pending bills from billing repository
     if (userType === 'interpreter') {
       const pendingBills = await this.billingHistoryRepository.find({

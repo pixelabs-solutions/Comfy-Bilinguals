@@ -6,12 +6,12 @@ import { Admin } from './entities/admin.entity';
 import { AuthModule } from '../auth/auth.module';
 import { User } from '../users/entities/user.entity';
 import { CallHistory } from '../calls/entities/call.entity';
-import { Billing } from '../billing/entities/billing.entity';
+import { Billing_History } from '../billing/entities/billing_history.entity';
 
 @Module({
   imports: [
     AuthModule,
-    TypeOrmModule.forFeature([Admin, User, CallHistory, Billing]),
+    TypeOrmModule.forFeature([Admin, User, CallHistory, Billing_History]),
   ],
   controllers: [AdminController],
   providers: [AdminService],

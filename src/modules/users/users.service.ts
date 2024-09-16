@@ -1,15 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import { AdminService } from '../admin/admin.service';
+import { Roles } from './enums/roles.enum';
+import { Billing_History } from '../billing/entities/billing_history.entity';
+import { Billing_Status } from '../billing/enum/billingStatus.enum';
+import { CallHistory } from '../calls/entities/call.entity';
+import { BillDto } from '../billing/dto/bill.dto';
+import { Bill } from '../billing/entities/bills.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private repository: Repository<User>,
+    @InjectRepository(CallHistory)
+    private callRepository: Repository<CallHistory>,
+    @InjectRepository(Billing_History)
+    private billingRepository: Repository<Billing_History>,
+    @InjectRepository(Bill)
+    private billRepo: Repository<Bill>,
+    private adminService: AdminService,
   ) {}
 
   findAll() {
@@ -22,8 +36,87 @@ export class UsersService {
   async findByEmail(email: string) {
     return this.repository.findOne({ where: { email } });
   }
-  async findbyId(id: number) {
+
+  async getFilteredUsers(role: Roles) {
+    const query = this.repository
+      .createQueryBuilder('user')
+      .select(['user.username', 'user.email', 'user.status'])
+      .leftJoinAndSelect('user.addedBy', 'addedBy') // Include the 'addedBy' user
+      .addSelect(['addedBy.username']) // Get addedBy user's name
+      .where('user.role = :role', { role });
+
+    const users = await query.getMany();
+    const activeInterpreters =
+      await this.adminService.getActiveInterpretersCount(role);
+    // Format the response to include the full name of the "addedBy" user
+    const formattedUsers = users.map((user) => ({
+      username: user.username,
+      email: user.email,
+      status: user.status,
+      addedBy: user.addedBy
+        ? `${user.addedBy.firstName} ${user.addedBy.lastName}`
+        : null,
+    }));
+
+    // Return both the formatted users and the activeInterpreters count
+    return {
+      users: formattedUsers,
+      activeCount: activeInterpreters,
+    };
+  }
+  async clientCallHistory(user: User) {
+    const history = await this.callRepository.find({
+      where: { client: { id: user['sub'] } },
+      order: { id: 'DESC' },
+    });
+    return history;
+  }
+  async clientBillHistory(user: User) {
+    const billHistory = await this.callRepository.find({
+      where: { client: { id: user['sub'] } },
+      order: { id: 'DESC' },
+    });
+    return billHistory;
+  }
+  async findById(id: number) {
     return await this.repository.findOne({ where: { id } });
+  }
+  async postBills(user: User, billDto: BillDto) {
+    const currentDate = new Date(); // Current date for the end date
+    if (billDto.role === 'interpreter') {
+      const bills = await this.billingRepository.find({
+        where: { interpreter: { id: user.id }, status: Billing_Status.PENDING },
+        order: { createdAt: 'ASC' },
+      });
+
+      if (bills.length === 0) {
+        throw new BadRequestException('No pending bills found.');
+      }
+      const startDate = bills[0].createdAt;
+      const totalPending = bills.reduce(
+        (sum, bill) => sum + Number(bill.amount),
+        0,
+      );
+      billDto.amount = totalPending;
+      return await this.billRepo.save(billDto);
+    } else if (billDto.role === 'client') {
+      const unpaidCalls = await this.callRepository.find({
+        where: { client: { id: user.id }, status: 'pending' },
+        order: { createdAt: 'ASC' }, // Replace with your actual field names
+      });
+      if (unpaidCalls.length === 0) {
+        throw new BadRequestException('No unpaid calls found.');
+      }
+
+      const startDate = unpaidCalls[0].createdAt;
+      // Sum up the bills
+      const totalUnpaid = unpaidCalls.reduce(
+        (sum, call) => sum + Number(call.bill),
+        0,
+      );
+      billDto.amount = totalUnpaid;
+      return await this.billRepo.save(billDto);
+    }
   }
   async userExists(email: string) {
     const user = await this.repository.findOne({ where: { email } });
@@ -41,8 +134,8 @@ export class UsersService {
       .getRawOne();
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: number, updateUserDto: UpdateUserDto) {
+    return await this.repository.update(id, updateUserDto);
   }
 
   remove(id: number) {

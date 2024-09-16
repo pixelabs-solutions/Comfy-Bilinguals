@@ -9,6 +9,7 @@ import {
   UploadedFile,
   BadRequestException,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import { AdminService } from './admin.service';
@@ -18,6 +19,9 @@ import path from 'path';
 import { AuthService } from '../auth/auth.service';
 import { FormDataValidationPipe } from '../utils/FormDataValidationPipe ';
 import { Roles } from '../users/enums/roles.enum';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { currentUser } from '../auth/decorators/currentUser';
+import { User } from '../users/entities/user.entity';
 
 @Controller('admin')
 export class AdminController {
@@ -26,10 +30,12 @@ export class AdminController {
     private authService: AuthService,
   ) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post('AddUser')
   async addUser(
     @Body() userDto: CreateUserDto,
     @UploadedFile('profileImage') profileImage,
+    @currentUser() user: User,
   ) {
     console.log(profileImage);
     if (userDto) {
@@ -49,7 +55,7 @@ export class AdminController {
         // userDto.cnic_Image = cnicImagePath;
       }
 
-      return await this.authService.userSignUp(userDto);
+      return await this.authService.userSignUp(userDto, user['sub']);
     } else {
       throw new BadRequestException('All fields are Required');
     }

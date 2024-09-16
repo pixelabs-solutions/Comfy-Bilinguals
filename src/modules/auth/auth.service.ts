@@ -16,15 +16,18 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async userSignUp(userDto: CreateUserDto) {
+  async userSignUp(userDto: CreateUserDto, id: number) {
     const userExists = await this.userService.userExists(userDto.email);
-
+    const userData = await this.userService.findById(id);
     if (userExists) {
       throw new BadRequestException('User already exists');
     } else {
-      return await this.registerUser({
-        ...userDto,
-      });
+      return await this.registerUser(
+        {
+          ...userDto,
+        },
+        userData,
+      );
     }
   }
 
@@ -42,11 +45,12 @@ export class AuthService {
     throw new UnauthorizedException('Invalid Credentials');
   }
 
-  async registerUser(user: any) {
+  async registerUser(user: any, userData: any) {
     try {
       const hashedPassword = hashPassword(user.password);
       console.log(hashedPassword);
       user.password = hashedPassword;
+      user.addedBy = userData;
 
       return await this.userService.createUser({ ...user });
       // const token = await this.assignToken(newUser);

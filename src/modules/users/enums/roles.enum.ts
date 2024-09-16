@@ -5,4 +5,5 @@ export enum Roles {
   INTERPRETER = 'interpreter',
   CLIENT = 'client',
   BILLING_MANAGER = 'billing-manager',
+  QUALITY_CONTROL = 'quality-control',
 }

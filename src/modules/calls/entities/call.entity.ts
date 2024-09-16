@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity'; // Assuming you have a User entity for clients and interpreters
 import { BaseEntity } from 'src/base.entity';
-import { paymentStatus } from '../enums/paymentStatus.enum';
+import { Billing_Status } from 'src/modules/billing/enum/billingStatus.enum';
 
 @Entity('call_history')
 export class CallHistory extends BaseEntity {
@@ -25,8 +25,8 @@ export class CallHistory extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: paymentStatus,
-    default: paymentStatus.PENDING,
+    enum: Billing_Status,
+    default: Billing_Status.PENDING,
   })
   status: string;
 }

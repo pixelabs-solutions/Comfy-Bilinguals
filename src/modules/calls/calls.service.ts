@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CallHistoryDto } from './dto/create-call.dto';
 import { UpdateCallDto } from './dto/update-call.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Billing } from '../billing/entities/billing.entity';
+import { Billing_History } from '../billing/entities/billing_history.entity';
 import { Between, Repository } from 'typeorm';
 import { CallHistory } from './entities/call.entity';
 
@@ -15,8 +15,8 @@ export class CallsService {
   constructor(
     @InjectRepository(CallHistory)
     private repository: Repository<CallHistory>,
-    @InjectRepository(Billing)
-    private billingHistoryRepository: Repository<Billing>,
+    @InjectRepository(Billing_History)
+    private billingHistoryRepository: Repository<Billing_History>,
     private adminService: AdminService,
     private billingService: BillingService,
   ) {}
