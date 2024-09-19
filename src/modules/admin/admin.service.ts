@@ -104,10 +104,9 @@ export class AdminService {
   }
 
   async getKpis(timeRange: 'weekly' | 'monthly' | 'yearly', date: Date) {
-    // Calculate the date range based on timeRange and current or provided date
     const { startDate, endDate } = this.calculateDateRange(timeRange, date);
 
-    // Fetch data for KPIs
+    // Fetch general stats within the date range
     const newCalls = await this.callHistoryRepository.count({
       where: { createdAt: Between(startDate, endDate) },
     });
@@ -118,16 +117,30 @@ export class AdminService {
         createdAt: Between(startDate, endDate),
       },
     });
+    // console.log(newInterpreters);
 
     const newClients = await this.userRepository.count({
       where: { role: Roles.CLIENT, createdAt: Between(startDate, endDate) },
     });
 
-    // Weekly interactions (for timeRange: 'weekly' only)
-    const weeklyInteractions =
-      timeRange === 'weekly'
-        ? await this.getWeeklyInteractions(startDate, endDate)
-        : [];
+    let interactionsByPeriod = [];
+
+    if (timeRange === 'weekly') {
+      interactionsByPeriod = await this.getWeeklyInteractions(
+        startDate,
+        endDate,
+      );
+    } else if (timeRange === 'monthly') {
+      interactionsByPeriod = await this.getInteractionsByWeek(
+        startDate,
+        endDate,
+      );
+    } else if (timeRange === 'yearly') {
+      interactionsByPeriod = await this.getInteractionsByMonth(
+        startDate,
+        endDate,
+      );
+    }
 
     return {
       newCalls: {
@@ -157,12 +170,53 @@ export class AdminService {
           date,
         ),
       },
-      weeklyInteractions,
+      interactionsByPeriod,
       activeInterpreters: await this.getActiveInterpretersCount(
         Roles.INTERPRETER,
       ),
     };
   }
+
+  async getInteractionsByWeek(startDate: Date, endDate: Date) {
+    const interactions = await this.callHistoryRepository.find({
+      where: { createdAt: Between(startDate, endDate) },
+    });
+
+    const weeklyInteractions = Array(4).fill(0); // For 4 weeks
+
+    interactions.forEach((interaction) => {
+      const diff = Math.floor(
+        (new Date(interaction.createdAt).getTime() - startDate.getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      ); // Calculate which week it falls in
+      if (diff < 4) weeklyInteractions[diff]++;
+    });
+
+    return weeklyInteractions.map((count, index) => ({
+      week: index + 1,
+      count,
+    }));
+  }
+
+  async getInteractionsByMonth(startDate: Date, endDate: Date) {
+    const interactions = await this.callHistoryRepository.find({
+      where: { createdAt: Between(startDate, endDate) },
+    });
+
+    const monthlyInteractions = Array(12).fill(0); // For 12 months
+
+    interactions.forEach((interaction) => {
+      const monthIndex =
+        new Date(interaction.createdAt).getMonth() - startDate.getMonth();
+      monthlyInteractions[monthIndex]++;
+    });
+
+    return monthlyInteractions.map((count, index) => ({
+      month: index + 1,
+      count,
+    }));
+  }
+
   async subAdminGetKpis(
     timeRange: 'weekly' | 'monthly' | 'yearly',
     date: Date,
@@ -231,23 +285,31 @@ export class AdminService {
     timeRange: 'weekly' | 'monthly' | 'yearly',
     referenceDate: Date,
   ) {
-    const endDate = endOfDay(referenceDate); // End date is the end of the reference day
+    const endDate = new Date(referenceDate);
     let startDate: Date;
 
     switch (timeRange) {
       case 'weekly':
-        startDate = subDays(endDate, 6); // Last 7 days
+        // For weekly, we go back 7 days
+        startDate = new Date(endDate);
+        startDate.setDate(endDate.getDate() - 7);
         break;
-      case 'monthly':
-        startDate = subMonths(endDate, 1); // Last month
-        break;
-      case 'yearly':
-        startDate = subYears(endDate, 1); // Last year
-        break;
-      default:
-        startDate = startOfDay(referenceDate); // Default to just today if none matched
-    }
 
+      case 'monthly':
+        // For monthly, go back 4 weeks (28 days)
+        startDate = new Date(endDate);
+        startDate.setDate(endDate.getDate() - 28); // 4 weeks
+        break;
+
+      case 'yearly':
+        // For yearly, go back 12 months
+        startDate = new Date(endDate);
+        startDate.setFullYear(endDate.getFullYear() - 1);
+        break;
+
+      default:
+        throw new Error('Invalid time range provided');
+    }
     return { startDate, endDate };
   }
 
@@ -277,22 +339,56 @@ export class AdminService {
     timeRange: 'weekly' | 'monthly' | 'yearly',
     referenceDate: Date,
   ): Promise<number> {
-    const { startDate: prevStartDate, endDate: prevEndDate } =
-      this.calculateDateRange(timeRange, referenceDate);
+    // Adjust the previous date range to be before the current period
+
+    // console.log(currentCount);
+    const previousPeriodEnd = new Date(referenceDate);
+
+    let previousPeriodStart: Date;
+    let currentPeriodStart: Date;
+
+    switch (timeRange) {
+      case 'weekly':
+        previousPeriodEnd.setDate(referenceDate.getDate() - 7);
+        previousPeriodStart = new Date(previousPeriodEnd);
+        previousPeriodStart.setDate(previousPeriodEnd.getDate() - 7);
+        currentPeriodStart = new Date(referenceDate);
+        currentPeriodStart.setDate(referenceDate.getDate() - 7);
+        break;
+
+      case 'monthly':
+        previousPeriodEnd.setMonth(referenceDate.getMonth() - 1);
+        previousPeriodStart = new Date(previousPeriodEnd);
+        previousPeriodStart.setMonth(previousPeriodEnd.getMonth() - 1);
+        currentPeriodStart = new Date(referenceDate);
+        currentPeriodStart.setMonth(referenceDate.getMonth() - 1);
+        break;
+
+      case 'yearly':
+        previousPeriodEnd.setFullYear(referenceDate.getFullYear() - 1);
+        previousPeriodStart = new Date(previousPeriodEnd);
+        previousPeriodStart.setFullYear(previousPeriodEnd.getFullYear() - 1);
+        currentPeriodStart = new Date(referenceDate);
+        currentPeriodStart.setFullYear(referenceDate.getFullYear() - 1);
+        break;
+
+      default:
+        throw new Error('Invalid time range provided');
+    }
 
     let previousCount: number;
 
     switch (metric) {
       case 'calls':
         previousCount = await this.callHistoryRepository.count({
-          where: { createdAt: Between(prevStartDate, prevEndDate) },
+          where: { createdAt: Between(previousPeriodStart, previousPeriodEnd) },
         });
         break;
       case 'interpreters':
         previousCount = await this.userRepository.count({
           where: {
             role: Roles.INTERPRETER,
-            createdAt: Between(prevStartDate, prevEndDate),
+            createdAt: Between(previousPeriodStart, previousPeriodEnd),
           },
         });
         break;
@@ -300,7 +396,7 @@ export class AdminService {
         previousCount = await this.userRepository.count({
           where: {
             role: Roles.CLIENT,
-            createdAt: Between(prevStartDate, prevEndDate),
+            createdAt: Between(previousPeriodStart, previousPeriodEnd),
           },
         });
         break;
@@ -309,7 +405,7 @@ export class AdminService {
     }
 
     if (previousCount === 0) return currentCount > 0 ? 100 : 0;
-
+    // console.log('PCOUNT', previousCount, currentCount);
     return ((currentCount - previousCount) / previousCount) * 100;
   }
 

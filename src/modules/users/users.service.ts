@@ -3,7 +3,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { AdminService } from '../admin/admin.service';
 import { Roles } from './enums/roles.enum';
 import { Billing_History } from '../billing/entities/billing_history.entity';
@@ -83,41 +83,75 @@ export class UsersService {
   }
   async postBills(user: User, billDto: BillDto) {
     const currentDate = new Date(); // Current date for the end date
+
+    const whereCondition: any = {
+      interpreter: { id: user.id },
+      status: Billing_Status.PENDING,
+    };
+    // Check if there are any existing bills for the user (interpreter or client)
+    const lastBill = await this.billRepo.findOne({
+      where: { user: { id: user.id } },
+      order: { createdAt: 'DESC' }, // Get the latest bill
+    });
+    // Determine the start date for the new bill
+    const startDate = lastBill ? new Date(lastBill.createdAt) : null;
+    if (startDate) {
+      // Set start date to one day after the last bill's createdAt date
+      startDate.setDate(startDate.getDate());
+      whereCondition.createdAt = MoreThanOrEqual(startDate);
+    }
+    console.log('Conditions', whereCondition);
     if (billDto.role === 'interpreter') {
-      const bills = await this.billingRepository.find({
-        where: { interpreter: { id: user.id }, status: Billing_Status.PENDING },
-        order: { createdAt: 'ASC' },
+      const pendingBills = await this.billingRepository.find({
+        where: whereCondition,
+        order: { createdAt: 'ASC' }, // Get bills starting from the start date
       });
 
-      if (bills.length === 0) {
-        throw new BadRequestException('No pending bills found.');
+      if (pendingBills.length === 0) {
+        throw new BadRequestException(
+          'No pending bills found for this period.',
+        );
       }
-      const startDate = bills[0].createdAt;
-      const totalPending = bills.reduce(
+
+      // Set the bill's start date (from the first pending bill)
+      billDto.from = startDate || pendingBills[0].createdAt;
+
+      // Calculate total amount
+      const totalPending = pendingBills.reduce(
         (sum, bill) => sum + Number(bill.amount),
         0,
       );
+
       billDto.amount = totalPending;
       return await this.billRepo.save(billDto);
     } else if (billDto.role === 'client') {
       const unpaidCalls = await this.callRepository.find({
-        where: { client: { id: user.id }, status: 'pending' },
-        order: { createdAt: 'ASC' }, // Replace with your actual field names
+        where: {
+          client: { id: user.id },
+          status: 'pending',
+          createdAt: startDate ? MoreThanOrEqual(startDate) : undefined,
+        },
+        order: { createdAt: 'ASC' }, // Get unpaid calls from the start date
       });
+
       if (unpaidCalls.length === 0) {
-        throw new BadRequestException('No unpaid calls found.');
+        throw new BadRequestException('No unpaid calls found for this period.');
       }
 
-      const startDate = unpaidCalls[0].createdAt;
-      // Sum up the bills
+      // Set the bill's start date (from the first unpaid call)
+      billDto.from = startDate || unpaidCalls[0].createdAt;
+
+      // Calculate total unpaid amount
       const totalUnpaid = unpaidCalls.reduce(
         (sum, call) => sum + Number(call.bill),
         0,
       );
+
       billDto.amount = totalUnpaid;
       return await this.billRepo.save(billDto);
     }
   }
+
   async userExists(email: string) {
     const user = await this.repository.findOne({ where: { email } });
     if (user) {

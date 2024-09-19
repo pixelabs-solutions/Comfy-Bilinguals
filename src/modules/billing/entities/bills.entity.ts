@@ -1,4 +1,10 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity'; // Assuming you have a User entity for interpreters
 import { BaseEntity } from 'src/base.entity';
 import { Billing_Status } from '../enum/billingStatus.enum';
@@ -26,4 +32,10 @@ export class Bill extends BaseEntity {
     default: Roles.CLIENT,
   })
   role: string;
+
+  @CreateDateColumn({
+    type: 'timestamptz',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  from: Date;
 }

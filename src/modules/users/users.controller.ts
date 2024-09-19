@@ -48,7 +48,9 @@ export class UsersController {
 
   @Post('BillingManager/GenBill')
   async GenBills(@Body() billDto: BillDto) {
+    console.log(billDto.user.id);
     const user = await this.usersService.findById(billDto.user.id);
+
     if (!user) {
       throw new BadRequestException('provided id is invalid');
     }

@@ -1,4 +1,10 @@
-import { IsEnum, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsDate,
+  IsEnum,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Billing_Status } from '../enum/billingStatus.enum';
 import { Roles } from 'src/modules/users/enums/roles.enum';
@@ -37,4 +43,8 @@ export class BillDto {
   @IsEnum(Roles)
   @IsOptional()
   role?: Roles;
+
+  @IsDate()
+  @IsOptional()
+  from: Date;
 }
