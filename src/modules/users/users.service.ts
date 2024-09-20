@@ -37,14 +37,19 @@ export class UsersService {
     return this.repository.findOne({ where: { email } });
   }
 
-  async getFilteredUsers(role: Roles) {
+  async getFilteredUsers(role: Roles, user: any) {
     const query = this.repository
       .createQueryBuilder('user')
       .select(['user.username', 'user.email', 'user.status'])
       .leftJoinAndSelect('user.addedBy', 'addedBy') // Include the 'addedBy' user
       .addSelect(['addedBy.username']) // Get addedBy user's name
       .where('user.role = :role', { role });
-
+    console.log(user.role);
+    if (user.role === Roles.SUB_ADMIN) {
+      query.andWhere('user.addedBy = :addedBy', {
+        addedBy: user['sub'],
+      });
+    }
     const users = await query.getMany();
     const activeInterpreters =
       await this.adminService.getActiveInterpretersCount(role);
@@ -79,7 +84,10 @@ export class UsersService {
     return billHistory;
   }
   async findById(id: number) {
-    return await this.repository.findOne({ where: { id } });
+    return await this.repository.findOne({
+      where: { id },
+      relations: { addedBy: true },
+    });
   }
   async postBills(user: User, billDto: BillDto) {
     const currentDate = new Date(); // Current date for the end date

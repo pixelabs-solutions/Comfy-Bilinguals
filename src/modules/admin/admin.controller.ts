@@ -69,19 +69,19 @@ export class AdminController {
     const referenceDate = date ? new Date(date) : new Date();
     return this.adminService.getKpis(timeRange, referenceDate);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Get('subAdmin/dashboard/kpis')
   async subAdminKpis(
+    @currentUser() user: User,
     @Query('timeRange') timeRange: 'weekly' | 'monthly' | 'yearly',
     @Query('date') date?: string,
   ) {
     const referenceDate = date ? new Date(date) : new Date();
-    return this.adminService.subAdminGetKpis(timeRange, referenceDate);
-  }
-
-  @Get('manageUser')
-  async findOne(@Param('id') id: string) {
-    return await this.adminService.findOne(+id);
+    return this.adminService.subAdminGetKpis(
+      timeRange,
+      referenceDate,
+      user['sub'],
+    );
   }
 
   @Get('pendingUsers')

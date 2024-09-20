@@ -67,15 +67,16 @@ export class UsersController {
     }
     return this.usersService.update(+id, updateUserDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Get('manageUsers')
   async manageUsersApi(
+    @currentUser() user: User,
     @Query('role') role: Roles, // "interpreter" or "client"
   ) {
     if (!role) {
       throw new BadRequestException('Role must be Specified Correctly');
     }
-    return this.usersService.getFilteredUsers(role);
+    return this.usersService.getFilteredUsers(role, user);
   }
 
   @Delete(':id')

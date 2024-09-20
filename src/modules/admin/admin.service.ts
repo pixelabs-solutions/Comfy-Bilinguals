@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { Between, Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { User } from '../users/entities/user.entity';
 import { endOfDay, startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { Roles } from '../users/enums/roles.enum';
 import { Billing_History } from '../billing/entities/billing_history.entity';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AdminService {
@@ -18,6 +19,8 @@ export class AdminService {
     private billingRepository: Repository<Billing_History>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @Inject(forwardRef(() => UsersService))
+    private readonly userService: UsersService,
   ) {}
   create(createAdminDto: CreateAdminDto) {
     return 'This action adds a new admin';
@@ -46,23 +49,25 @@ export class AdminService {
 
   async getPayments(filter: { period: 'week' | 'month' | 'year' }) {
     const now = new Date();
-    let startDate: Date;
+    let startDate: Date, previousStartDate: Date;
 
     // Determine the start date based on the selected period
     switch (filter.period) {
       case 'week':
         startDate = new Date(now.setDate(now.getDate() - 7));
+        previousStartDate = new Date(now.setDate(now.getDate() - 14));
         break;
       case 'month':
         startDate = new Date(now.setMonth(now.getMonth() - 1));
+        previousStartDate = new Date(now.setMonth(now.getMonth() - 2));
         break;
       case 'year':
         startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+        previousStartDate = new Date(now.setFullYear(now.getFullYear() - 2));
         break;
       default:
         throw new Error('Invalid period');
     }
-
     // Get total client payments (sum of bills in the call repository)
     const clientPaymentsResult = await this.callHistoryRepository
       .createQueryBuilder('call')
@@ -93,13 +98,72 @@ export class AdminService {
     );
 
     // Calculate payment after deduction
-    const paymentAfterDeduction = totalClients - totalInterpreters;
+    const prevClientPaymentsResult = await this.callHistoryRepository
+      .createQueryBuilder('call')
+      .where('call.createdAt BETWEEN :previousStartDate AND :startDate', {
+        previousStartDate,
+        startDate,
+      })
+      .select('SUM(call.bill)', 'prevTotalClients')
+      .getRawOne();
+    const prevTotalClients = parseFloat(
+      prevClientPaymentsResult.prevTotalClients || '0',
+    );
 
-    // Return the results
-    return {
+    // Get total interpreter payments for the previous period
+    const prevInterpreterPaymentsResult = await this.billingRepository
+      .createQueryBuilder('billing')
+      .where('billing.createdAt BETWEEN :previousStartDate AND :startDate', {
+        previousStartDate,
+        startDate,
+      })
+      .select('SUM(billing.amount)', 'prevTotalInterpreters')
+      .getRawOne();
+    const prevTotalInterpreters = parseFloat(
+      prevInterpreterPaymentsResult.prevTotalInterpreters || '0',
+    );
+
+    // Calculate payment after deduction for the current and previous period
+    const paymentAfterDeduction = totalClients - totalInterpreters;
+    const prevPaymentAfterDeduction = prevTotalClients - prevTotalInterpreters;
+
+    // Helper function to calculate percentage change
+    const calculatePercentageChange = (
+      current: number,
+      previous: number,
+    ): number => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return ((current - previous) / previous) * 100;
+    };
+
+    // Calculate percentage changes
+    const paymentChange = calculatePercentageChange(
       paymentAfterDeduction,
-      interpreters: totalInterpreters,
-      clients: totalClients,
+      prevPaymentAfterDeduction,
+    );
+    const clientChange = calculatePercentageChange(
+      totalClients,
+      prevTotalClients,
+    );
+    const interpreterChange = calculatePercentageChange(
+      totalInterpreters,
+      prevTotalInterpreters,
+    );
+
+    // Return the results with percentage changes
+    return {
+      paymentAfterDeduction: {
+        amount: paymentAfterDeduction,
+        percentageChange: paymentChange,
+      },
+      interpreters: {
+        amount: totalInterpreters,
+        percentageChange: interpreterChange,
+      },
+      clients: {
+        amount: totalClients,
+        percentageChange: clientChange,
+      },
     };
   }
 
@@ -220,26 +284,36 @@ export class AdminService {
   async subAdminGetKpis(
     timeRange: 'weekly' | 'monthly' | 'yearly',
     date: Date,
+    userId: number,
   ) {
+    const subAdmin = await this.userService.findById(userId);
     // Calculate the date range based on timeRange and current or provided date
     const { startDate, endDate } = this.calculateDateRange(timeRange, date);
-
+    console.log(subAdmin);
     // Fetch data for KPIs
     const newCalls = await this.callHistoryRepository.count({
-      where: { createdAt: Between(startDate, endDate) },
+      where: {
+        interpreter: { addedBy: { id: subAdmin.id } },
+        createdAt: Between(startDate, endDate),
+      },
     });
-
+    console.log('Calls', newCalls);
     const newInterpreters = await this.userRepository.count({
       where: {
         role: Roles.INTERPRETER,
         createdAt: Between(startDate, endDate),
+        addedBy: { id: subAdmin.id },
       },
     });
-
+    console.log('Interpreter', newInterpreters);
     const newClients = await this.userRepository.count({
-      where: { role: Roles.CLIENT, createdAt: Between(startDate, endDate) },
+      where: {
+        role: Roles.CLIENT,
+        createdAt: Between(startDate, endDate),
+        addedBy: { id: subAdmin.id },
+      },
     });
-
+    console.log('CLIENTS', newClients);
     // Weekly interactions (for timeRange: 'weekly' only)
     const weeklyInteractions =
       timeRange === 'weekly'

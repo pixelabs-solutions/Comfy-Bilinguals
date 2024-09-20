@@ -7,11 +7,15 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { CallsService } from './calls.service';
 import { UpdateCallDto } from './dto/update-call.dto';
 import { CallHistoryDto } from './dto/create-call.dto';
 import { UsersService } from '../users/users.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { currentUser } from '../auth/decorators/currentUser';
+import { User } from '../users/entities/user.entity';
 
 @Controller('calls')
 export class CallsController {
@@ -26,14 +30,15 @@ export class CallsController {
     // const client = await this.userService.findbyId(createCallDto.client);
     return await this.callsService.create(createCallDto);
   }
-
+  @UseGuards(JwtAuthGuard)
   @Get('callHistory')
   async findAll(
+    @currentUser() user: User,
     @Query('timeRange') timeRange: 'weekly' | 'monthly' | 'yearly',
     @Query('date') date?: string,
   ) {
     const referenceDate = date ? new Date(date) : new Date();
-    return await this.callsService.findAll(timeRange, referenceDate);
+    return await this.callsService.findAll(timeRange, referenceDate, user);
   }
 
   @Get('subAdmin/CallHistory')

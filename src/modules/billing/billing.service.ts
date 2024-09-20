@@ -7,6 +7,7 @@ import { LessThanOrEqual, Repository } from 'typeorm';
 import { GetBillingHistoryFilterDto } from './dto/getBillingHistory.dto';
 import { CallHistory } from '../calls/entities/call.entity';
 import { UsersService } from '../users/users.service';
+import { Roles } from '../users/enums/roles.enum';
 
 @Injectable()
 export class BillingService {
@@ -21,10 +22,11 @@ export class BillingService {
     const billHistory = this.billingHistoryRepository.create(createBillingDto);
     return await this.billingHistoryRepository.save(billHistory);
   }
-  async getBillingHistory(filterDto: GetBillingHistoryFilterDto) {
+  async getBillingHistory(filterDto: GetBillingHistoryFilterDto, user: any) {
     const { filter } = filterDto;
     const query = this.billingHistoryRepository
       .createQueryBuilder('billing')
+      // .leftJoin('billing.interpreter', 'interpreter');
       .leftJoinAndSelect('billing.interpreter', 'interpreter'); // Adding the interpreter relation
 
     if (filter) {
@@ -43,6 +45,11 @@ export class BillingService {
           throw new Error('Invalid filter option');
       }
       query.andWhere('billing.createdAt >= :date', { date });
+    }
+    if (user.role === Roles.SUB_ADMIN) {
+      query.andWhere('interpreter.addedBy = :addedBy', {
+        addedBy: user.sub, // Assuming 'user.sub' is the ID of the sub-admin
+      });
     }
 
     const billingHistories = await query.getMany();

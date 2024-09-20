@@ -7,11 +7,15 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { BillingService } from './billing.service';
 import { CreateBillingDto } from './dto/create-billing.dto';
 import { UpdateBillingDto } from './dto/update-billing.dto';
 import { GetBillingHistoryFilterDto } from './dto/getBillingHistory.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { currentUser } from '../auth/decorators/currentUser';
+import { User } from '../users/entities/user.entity';
 
 @Controller('billing')
 export class BillingController {
@@ -21,9 +25,13 @@ export class BillingController {
   async create(@Body() createBillingDto: CreateBillingDto) {
     return await this.billingService.create(createBillingDto);
   }
+  @UseGuards(JwtAuthGuard)
   @Get('billHistory')
-  async getBillingHistory(@Query() filterDto: GetBillingHistoryFilterDto) {
-    return this.billingService.getBillingHistory(filterDto);
+  async getBillingHistory(
+    @currentUser() user: User,
+    @Query() filterDto: GetBillingHistoryFilterDto,
+  ) {
+    return this.billingService.getBillingHistory(filterDto, user);
   }
   @Get('subAdmin/BillHistory')
   async subBillingHistory(@Query() filterDto: GetBillingHistoryFilterDto) {

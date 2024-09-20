@@ -9,6 +9,7 @@ import { CallHistory } from './entities/call.entity';
 import { BillingService } from '../billing/billing.service';
 import { CreateBillingDto } from '../billing/dto/create-billing.dto';
 import { AdminService } from '../admin/admin.service';
+import { Roles } from '../users/enums/roles.enum';
 
 @Injectable()
 export class CallsService {
@@ -33,7 +34,11 @@ export class CallsService {
     return this.repository.save(callHistory);
   }
 
-  async findAll(timeRange: 'weekly' | 'monthly' | 'yearly', date: Date) {
+  async findAll(
+    timeRange: 'weekly' | 'monthly' | 'yearly',
+    date: Date,
+    user: any,
+  ) {
     // Calculate the start and end date based on the time range and input date
     const { startDate, endDate } = this.adminService.calculateDateRange(
       timeRange,
@@ -41,21 +46,25 @@ export class CallsService {
     );
 
     // Initialize the query builder
-    const query = this.repository.createQueryBuilder('billing');
+    const query = this.repository
+      .createQueryBuilder('callHistory')
+      .leftJoinAndSelect('callHistory.client', 'client')
+      .leftJoinAndSelect('callHistory.interpreter', 'interpreter');
 
     // Add time range filter if specified
     if (timeRange) {
-      query.andWhere('billing.createdAt BETWEEN :startDate AND :endDate', {
+      query.andWhere('callHistory.createdAt BETWEEN :startDate AND :endDate', {
         startDate,
         endDate,
       });
     }
-
+    if (user.role === Roles.SUB_ADMIN) {
+      query.andWhere('interpreter.addedBy = :addedBy', {
+        addedBy: user['sub'],
+      });
+    }
     // Fetch the data with relations to client and interpreter
-    const result = await query
-      .leftJoinAndSelect('billing.client', 'client')
-      .leftJoinAndSelect('billing.interpreter', 'interpreter')
-      .getMany();
+    const result = await query.orderBy('callHistory.id', 'DESC').getMany();
 
     return {
       result,
