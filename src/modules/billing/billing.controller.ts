@@ -16,6 +16,7 @@ import { GetBillingHistoryFilterDto } from './dto/getBillingHistory.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { currentUser } from '../auth/decorators/currentUser';
 import { User } from '../users/entities/user.entity';
+import { Billing_Status } from './enum/billingStatus.enum';
 
 @Controller('billing')
 export class BillingController {
@@ -38,9 +39,19 @@ export class BillingController {
     return this.billingService.subGetBillingHistory(filterDto);
   }
 
-  @Get('Generate/Bills')
+  @Get('fetch/Bills')
   async fetchBills(@Query('userType') userType: string, id: number) {
     return this.billingService.fetchAllBills(userType, id);
+  }
+
+  @Get('billingManager/fetch/Bills')
+  async getBills(
+    // @Query('userType') userType: string,
+    @Query('userType') userType?: string,
+    @Query('status')
+    status?: Billing_Status,
+  ) {
+    return this.billingService.fetchBills(userType, status);
   }
 
   @Get(':id')

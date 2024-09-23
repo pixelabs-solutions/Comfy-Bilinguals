@@ -103,6 +103,7 @@ export class UsersService {
     });
     // Determine the start date for the new bill
     const startDate = lastBill ? new Date(lastBill.createdAt) : null;
+    console.log(startDate);
     if (startDate) {
       // Set start date to one day after the last bill's createdAt date
       startDate.setDate(startDate.getDate());
@@ -114,7 +115,7 @@ export class UsersService {
         where: whereCondition,
         order: { createdAt: 'ASC' }, // Get bills starting from the start date
       });
-
+      console.log('Pending Bills', pendingBills);
       if (pendingBills.length === 0) {
         throw new BadRequestException(
           'No pending bills found for this period.',

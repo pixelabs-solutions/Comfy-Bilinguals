@@ -8,12 +8,16 @@ import { GetBillingHistoryFilterDto } from './dto/getBillingHistory.dto';
 import { CallHistory } from '../calls/entities/call.entity';
 import { UsersService } from '../users/users.service';
 import { Roles } from '../users/enums/roles.enum';
+import { Bill } from './entities/bills.entity';
+import { Billing_Status } from './enum/billingStatus.enum';
 
 @Injectable()
 export class BillingService {
   constructor(
     @InjectRepository(Billing_History)
     private billingHistoryRepository: Repository<Billing_History>,
+    @InjectRepository(Bill)
+    private billRepository: Repository<Bill>,
     @InjectRepository(CallHistory)
     private callHistoryRepository: Repository<CallHistory>,
     private userService: UsersService,
@@ -121,6 +125,27 @@ export class BillingService {
     };
   }
 
+  async fetchBills(userType?: string, status?: Billing_Status) {
+    if (!userType) {
+      throw new BadRequestException('User type is required');
+    }
+
+    const query = this.billRepository.createQueryBuilder('bill');
+    query.where('bill.role = :userType', { userType }); // Fetching based on user ID
+
+    // Optional status filter
+    if (status !== null && status !== undefined) {
+      query.andWhere('bill.status = :status', { status });
+    }
+
+    // Optional sorting (e.g., by date)
+    query.orderBy('bill.createdAt', 'DESC');
+
+    // Debugging: Log generated SQL for troubleshooting
+
+    const bills = await query.getMany();
+    return bills;
+  }
   findOne(id: number) {
     return `This action returns a #${id} billing`;
   }

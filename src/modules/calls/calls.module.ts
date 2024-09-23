@@ -8,10 +8,11 @@ import { UsersModule } from '../users/users.module';
 import { BillingService } from '../billing/billing.service';
 import { AdminService } from '../admin/admin.service';
 import { User } from '../users/entities/user.entity';
+import { Bill } from '../billing/entities/bills.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CallHistory, Billing_History, User]),
+    TypeOrmModule.forFeature([CallHistory, Billing_History, User, Bill]),
     UsersModule,
   ],
   controllers: [CallsController],

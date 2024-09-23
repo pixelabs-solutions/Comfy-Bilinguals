@@ -5,10 +5,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Billing_History } from './entities/billing_history.entity';
 import { CallHistory } from '../calls/entities/call.entity';
 import { UsersModule } from '../users/users.module';
+import { Bill } from './entities/bills.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Billing_History, CallHistory]),
+    TypeOrmModule.forFeature([Billing_History, CallHistory, Bill]),
     UsersModule,
   ],
   controllers: [BillingController],
