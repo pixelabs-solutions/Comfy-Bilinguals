@@ -10,6 +10,7 @@ import { UsersService } from '../users/users.service';
 import { Roles } from '../users/enums/roles.enum';
 import { Bill } from './entities/bills.entity';
 import { Billing_Status } from './enum/billingStatus.enum';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class BillingService {
@@ -26,7 +27,7 @@ export class BillingService {
     const billHistory = this.billingHistoryRepository.create(createBillingDto);
     return await this.billingHistoryRepository.save(billHistory);
   }
-  async getBillingHistory(filterDto: GetBillingHistoryFilterDto, user: any) {
+  async getBillingHistory(filterDto: GetBillingHistoryFilterDto, user?: any) {
     const { filter } = filterDto;
     const query = this.billingHistoryRepository
       .createQueryBuilder('billing')
@@ -50,6 +51,7 @@ export class BillingService {
       }
       query.andWhere('billing.createdAt >= :date', { date });
     }
+
     if (user.role === Roles.SUB_ADMIN) {
       query.andWhere('interpreter.addedBy = :addedBy', {
         addedBy: user.sub, // Assuming 'user.sub' is the ID of the sub-admin
@@ -58,6 +60,15 @@ export class BillingService {
 
     const billingHistories = await query.getMany();
     return billingHistories;
+  }
+  async interBillHistory(userId: number) {
+    const bills = await this.billingHistoryRepository
+      .createQueryBuilder('billing')
+      .leftJoin('billing.interpreter', 'interpreter')
+      .andWhere('interpreter.id = :userId', { userId })
+      .getMany();
+
+    return bills;
   }
 
   async subGetBillingHistory(filterDto: GetBillingHistoryFilterDto) {

@@ -41,6 +41,17 @@ export class CallsController {
     return await this.callsService.findAll(timeRange, referenceDate, user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('inter/callHistory')
+  async fetchCalls(
+    @currentUser() user: User,
+    // @Query('timeRange') timeRange: 'weekly' | 'monthly' | 'yearly',
+    // @Query('date') date?: string,
+  ) {
+    // const referenceDate = date ? new Date(date) : new Date();
+    return await this.callsService.getCallHistory(user['sub']);
+  }
+
   @Get('subAdmin/CallHistory')
   async subAdminCallHistory(
     @Query('timeRange') timeRange: 'weekly' | 'monthly' | 'yearly',

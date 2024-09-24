@@ -38,6 +38,11 @@ export class BillingController {
   async subBillingHistory(@Query() filterDto: GetBillingHistoryFilterDto) {
     return this.billingService.subGetBillingHistory(filterDto);
   }
+  @UseGuards(JwtAuthGuard)
+  @Get('Interpreter/billHistory')
+  async getInterpreterBillingHistory(@currentUser() user: User) {
+    return this.billingService.interBillHistory(user['sub']);
+  }
 
   @Get('fetch/Bills')
   async fetchBills(@Query('userType') userType: string, id: number) {

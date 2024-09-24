@@ -99,6 +99,16 @@ export class CallsService {
     };
   }
 
+  async getCallHistory(userId: number) {
+    const Calls = await this.repository
+      .createQueryBuilder('calls')
+      .leftJoin('calls.interpreter', 'interpreter')
+      .where('interpreter.id = :userId', { userId })
+      .getMany();
+
+    return Calls;
+  }
+
   findOne(id: number) {
     return `This action returns a #${id} call`;
   }

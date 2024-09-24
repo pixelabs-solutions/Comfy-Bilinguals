@@ -68,16 +68,17 @@ export class UsersController {
     }
     return this.usersService.postBills(user, billDto);
   }
+  @UseGuards(JwtAuthGuard)
   @Patch('update/:id')
   async updateUser(
-    @Param('id') id: number,
+    @currentUser() user: User,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    const user = await this.usersService.findById(id);
-    if (!user) {
+    const userData = await this.usersService.findById(user['sub']);
+    if (userData == null || userData == undefined || !userData) {
       throw new BadRequestException('User not found');
     }
-    return this.usersService.update(+id, updateUserDto);
+    return this.usersService.update(user['sub'], updateUserDto);
   }
   @UseGuards(JwtAuthGuard)
   @Get('manageUsers')
