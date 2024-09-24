@@ -89,6 +89,15 @@ export class UsersService {
       relations: { addedBy: true },
     });
   }
+  async getUsers(role: Roles, user: User) {
+    const users = await this.repository
+      .createQueryBuilder('user')
+      .select(['user.id', 'user.username', 'user.email', 'user.status'])
+      .where('user.role = :role', { role })
+      .getMany();
+
+    return users;
+  }
   async postBills(user: User, billDto: BillDto) {
     const currentDate = new Date(); // Current date for the end date
 

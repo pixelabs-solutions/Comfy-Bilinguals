@@ -46,6 +46,18 @@ export class UsersController {
     return this.usersService.clientBillHistory(user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('getUsers')
+  async fetchUsers(
+    @currentUser() user: User,
+    @Query('role') role: Roles, // "interpreter" or "client"
+  ) {
+    if (!role) {
+      throw new BadRequestException('Role must be Specified Correctly');
+    }
+    return this.usersService.getUsers(role, user);
+  }
+
   @Post('BillingManager/GenBill')
   async GenBills(@Body() billDto: BillDto) {
     console.log(billDto.user.id);
