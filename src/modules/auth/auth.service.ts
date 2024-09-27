@@ -64,10 +64,10 @@ export class AuthService {
     console.log(user);
 
     const payload = {
-      username: user?.user_email || user?.email,
+      email: user?.user_email || user?.email,
       sub: user?.user_id || user?.id,
       role: user?.user_role || user?.role,
-      // hostel_id: hostel?.id || null,
+      username: user?.user_username || user?.username,
     };
     console.log(payload);
     console.log('Signing JWT with secret:', process.env.JWT_KEY);

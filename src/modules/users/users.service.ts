@@ -92,11 +92,26 @@ export class UsersService {
   async getUsers(role: Roles, user: User) {
     const users = await this.repository
       .createQueryBuilder('user')
-      .select(['user.id', 'user.username', 'user.email', 'user.status'])
+      .select([
+        'user.id',
+        'user.username',
+        'user.email',
+        'user.status',
+        'user.role',
+      ])
       .where('user.role = :role', { role })
       .getMany();
 
-    return users;
+    let filteredUsers = [];
+    for (const user of users) {
+      const condition = await this.checkBills(user.id, user.role);
+      console.log(condition);
+      if (condition) {
+        filteredUsers.push(user);
+      } else continue;
+    }
+
+    return filteredUsers;
   }
   async postBills(user: User, billDto: BillDto) {
     const currentDate = new Date(); // Current date for the end date
@@ -167,6 +182,56 @@ export class UsersService {
 
       billDto.amount = totalUnpaid;
       return await this.billRepo.save(billDto);
+    }
+  }
+
+  async checkBills(id: number, role: string): Promise<boolean> {
+    let totalAmount = 0;
+    let billsSum = 0;
+    // Fetch pending bills for the user (both client and interpreter)
+    const pendingBills = await this.billRepo.find({
+      where: { user: { id: id }, status: Billing_Status.PENDING },
+    });
+    // Calculate the sum of the bills from the billRepo
+    if (pendingBills && pendingBills.length > 0) {
+      billsSum = pendingBills.reduce(
+        (acc, bill) => acc + Number(bill.amount || 0),
+        0,
+      );
+    }
+    // Role-based logic: either check client or interpreter's records
+    if (role === 'client') {
+      // Fetch pending call history for the client and sum the bill amounts
+      const pendingCalls = await this.callRepository.find({
+        where: { client: { id: id }, status: Billing_Status.PENDING },
+      });
+
+      if (pendingCalls && pendingCalls.length > 0) {
+        totalAmount = pendingCalls.reduce(
+          (acc, call) => acc + Number(call.bill || 0),
+          0,
+        );
+      }
+    } else if (role === 'interpreter') {
+      // Fetch pending billing history for the interpreter and sum the amounts
+      const interpreterBills = await this.billingRepository.find({
+        where: { interpreter: { id: id }, status: Billing_Status.PENDING },
+      });
+      console.log('Pending Bills:', interpreterBills);
+      if (interpreterBills && interpreterBills.length > 0) {
+        totalAmount = interpreterBills.reduce(
+          (acc, bill) => acc + Number(bill.amount || 0),
+          0,
+        );
+      }
+    }
+    console.log('Total amount: ' + totalAmount);
+    console.log('bill Sum ' + billsSum);
+    // Compare the total amount with the sum of the bills
+    if (totalAmount > billsSum) {
+      return true; // The amount is greater than the summed bills
+    } else {
+      return false; // The amount is less than or equal to the summed bills
     }
   }
 
