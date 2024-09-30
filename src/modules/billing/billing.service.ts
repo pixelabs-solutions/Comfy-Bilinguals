@@ -142,8 +142,7 @@ export class BillingService {
     }
 
     const query = this.billRepository.createQueryBuilder('bill');
-    query.leftJoin('bill.user', 'user');
-    query.addSelect(['user.username']);
+    query.leftJoinAndSelect('bill.user', 'user');
     query.where('bill.role = :userType', { userType });
     // Fetching based on user ID
 

@@ -4,6 +4,8 @@ import { gender } from '../enums/gender.enum';
 import { BaseEntity } from 'src/base.entity';
 import { CallHistory } from 'src/modules/calls/entities/call.entity';
 import { Billing_History } from 'src/modules/billing/entities/billing_history.entity';
+import { Rating } from 'src/modules/ratings/entities/rating.entity';
+import { Notification } from 'src/modules/notifications/entities/notification.entity';
 
 @Entity('users')
 export class User extends BaseEntity {
@@ -68,6 +70,15 @@ export class User extends BaseEntity {
   // Self-referential relationship to track who added the user
   @ManyToOne(() => User, (user) => user.addedUsers, { nullable: true })
   addedBy: User;
+
+  @OneToMany(() => Rating, (rating) => rating.client)
+  givenRatings: Rating[]; // Ratings given by the client
+
+  @OneToMany(() => Rating, (rating) => rating.interpreter)
+  receivedRatings: Rating[]; // Ratings received by the interpreter
+
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 
   @OneToMany(() => User, (user) => user.addedBy)
   addedUsers: User[];
